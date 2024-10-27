@@ -41,24 +41,124 @@ package DBD::DuckDB::FFI::Result {
 }
 $ffi->type( 'record(DBD::DuckDB::FFI::Result)' => 'duckdb_query_result' );
 
+package DBD::DuckDB::FFI::DataChunk {
+    use FFI::Platypus::Record qw( record_layout_1 );
+    record_layout_1( $ffi, opaque => 'internal_ptr' );
+}
+$ffi->type( 'record(DBD::DuckDB::FFI::DataChunk)' => 'duckdb_data_chunk' );
+
+package DBD::DuckDB::FFI::Vector {
+    use FFI::Platypus::Record qw( record_layout_1 );
+    record_layout_1( $ffi, opaque => 'internal_ptr' );
+}
+$ffi->type( 'record(DBD::DuckDB::FFI::Vector)' => 'duckdb_vector' );
+
+$ffi->type( 'opaque' => 'duckdb_config' );
+$ffi->type( 'opaque' => 'duckdb_query_progress_type' );
 $ffi->type( 'opaque' => 'duckdb_state' );
+$ffi->type( 'opaque' => 'duckdb_type' );
+$ffi->type( 'opaque' => 'duckdb_statement_type' );
+$ffi->type( 'opaque' => 'duckdb_logical_type' );
+$ffi->type( 'opaque' => 'duckdb_result_type' );
+$ffi->type( 'opaque' => 'duckdb_result_error_type' );
+$ffi->type( 'opaque' => 'duckdb_appender' );
+$ffi->type( 'opaque' => 'duckdb_statement' );
+$ffi->type( 'opaque' => 'duckdb_prepared_statement' );
+$ffi->type( 'int'    => 'idx_t' );
 
 my %functions = (
-    duckdb_open    => [ [ 'string', 'duckdb_database*' ] => 'duckdb_state' ],
+
+    # Startup / Shutdown
+    duckdb_open     => [ [ 'string', 'duckdb_database*' ] => 'duckdb_state' ],
+    duckdb_open_ext => [
+        [ 'string', 'duckdb_database*', 'duckdb_config', 'string*' ] =>
+          'duckdb_state'
+    ],
+    duckdb_close   => [ ['duckdb_database*'] => 'duckdb_state' ],
     duckdb_connect =>
       [ [ 'duckdb_database', 'duckdb_connection*' ] => 'duckdb_state' ],
+    duckdb_interrupt      => [ ['duckdb_connection'] => 'void' ],
+    duckdb_query_progress =>
+      [ ['duckdb_connection'] => 'duckdb_query_progress_type' ],
+    duckdb_disconnect      => [ ['duckdb_connection*'] => 'duckdb_state' ],
+    duckdb_library_version => [ []                     => 'string' ],
+
+    # Configuration
+    duckdb_create_config   => [ ['duckdb_config*'] => 'duckdb_state' ],
+    duckdb_config_count    => [ []                 => 'int' ],
+    duckdb_get_config_flag =>
+      [ [ 'size_t', 'string', 'string' ] => 'duckdb_state' ],
+    duckdb_set_config =>
+      [ [ 'duckdb_config', 'string', 'string' ] => 'duckdb_state' ],
+    duckdb_destroy_config => [ ['duckdb_config*'] => 'duckdb_state' ],
+
+    # Query
     duckdb_query => [
         [ 'duckdb_connection', 'string', 'duckdb_query_result*' ] =>
           'duckdb_state'
     ],
+    duckdb_destroy_result => [ ['duckdb_query_result*']          => 'void' ],
+    duckdb_column_name    => [ [ 'duckdb_query_result*', 'int' ] => 'string' ],
+    duckdb_column_type    =>
+      [ [ 'duckdb_query_result*', 'int' ] => 'duckdb_type' ],
+    duckdb_result_statement_type =>
+      [ ['duckdb_query_result'] => 'duckdb_statement_type' ],
+    duckdb_column_logical_type =>
+      [ [ 'duckdb_query_result*', 'int' ] => 'duckdb_logical_type' ],
 
-    duckdb_row_count   => [ ['duckdb_query_result*']                 => 'int' ],
-    duckdb_value_int32 => [ [ 'duckdb_query_result*', 'int', 'int' ] => 'int' ],
+    duckdb_column_count      => [ ['duckdb_query_result*'] => 'idx_t' ],
+    duckdb_rows_changed      => [ ['duckdb_query_result*'] => 'idx_t' ],
+    duckdb_result_error      => [ ['duckdb_query_result*'] => 'string' ],
+    duckdb_result_error_type =>
+      [ ['duckdb_query_result*'] => 'duckdb_result_error_type' ],
+    duckdb_result_return_type =>
+      [ ['duckdb_query_result'] => 'duckdb_result_type' ],
+
+    duckdb_value_int32 => [ [ 'duckdb_query_result*', 'int', 'int' ] => 'int' ]
+    ,                                                              # deprecated
     duckdb_value_varchar =>
-      [ [ 'duckdb_query_result*', 'int', 'int' ] => 'string' ],
-    duckdb_disconnect => [ ['duckdb_connection*'] => 'duckdb_state' ],
-    duckdb_close      => [ ['duckdb_database*']   => 'duckdb_state' ],
+      [ [ 'duckdb_query_result*', 'int', 'int' ] => 'string' ],    # deprecated
+
+    # data chunks
+    duckdb_result_get_chunk =>
+      [ [ 'duckdb_query_result', 'int' ] => 'duckdb_data_chunk' ],  # deprecated
+    duckdb_create_data_chunk =>
+      [ [ 'duckdb_logical_type*', 'idx_t' ] => 'duckdb_data_chunk' ],
+
+    duckdb_fetch_chunk => [ ['duckdb_query_result'] => 'duckdb_data_chunk' ],
+    duckdb_destroy_data_chunk          => [ ['duckdb_data_chunk*'] => 'void' ],
+    duckdb_data_chunk_reset            => [ ['duckdb_data_chunk']  => 'void' ],
+    duckdb_data_chunk_get_column_count => [ ['duckdb_data_chunk']  => 'idx_t' ],
+    duckdb_data_chunk_get_vector       =>
+      [ [ 'duckdb_data_chunk', 'idx_t' ] => 'duckdb_vector' ],
+    duckdb_data_chunk_get_size => [ ['duckdb_data_chunk'] => 'idx_t' ],
+    duckdb_data_chunk_set_size =>
+      [ [ 'duckdb_data_chunk', 'idx_t' ] => 'void' ],
+    duckdb_append_data_chunk =>
+      [ [ 'duckdb_appender', 'duckdb_data_chunk' ] => 'duckdb_state' ],
+
+    # vectors
+    duckdb_vector_get_column_type =>
+      [ [ 'duckdb_vector', 'idx_t' ] => 'duckdb_logical_type' ],
+    duckdb_vector_get_data       => [ ['duckdb_vector']     => 'opaque' ],
+    duckdb_vector_get_validity   => [ ['duckdb_vector']     => 'opaque' ],
+    duckdb_validity_row_is_valid => [ [ 'opaque', 'idx_t' ] => 'bool' ],
+
+    duckdb_prepare => [
+        [ 'duckdb_connection', 'string', 'duckdb_statement*' ] => 'duckdb_state'
+    ],
+
+    duckdb_vector_size => [ [] => 'idx_t' ],
+
+    duckdb_execute_prepared => [
+        [ 'duckdb_prepared_statement', 'duckdb_query_result*' ] =>
+          'duckdb_state'
+    ],
 );
+
+sub cast ( $data, $from, $to ) {
+    $ffi->cast( $from, $to, $data );
+}
 
 while ( my ( $func, $args ) = each %functions ) {
     try {
