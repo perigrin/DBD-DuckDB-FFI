@@ -1,14 +1,15 @@
 package DBD::DuckDB::FFI;
 use 5.26.0;
 use warnings;
-use feature 'signatures';
 use Feature::Compat::Try;
 use builtin qw( export_lexically );
+use experimental 'signatures';
 
 our $VERSION = '0.01';
 
 use FFI::Platypus 2.08;
 use FFI::CheckLib qw( find_lib_or_die );
+use FFI::C;
 
 my $ffi = FFI::Platypus->new(
     api => 2,
@@ -53,6 +54,75 @@ package DBD::DuckDB::FFI::Vector {
 }
 $ffi->type( 'record(DBD::DuckDB::FFI::Vector)' => 'duckdb_vector' );
 
+package DBD::DuckDB::FFI::Date {
+    use FFI::Platypus::Record qw( record_layout_1 );
+    record_layout_1( $ffi, int => 'days' );
+}
+$ffi->type( 'record(DBD::DuckDB::FFI::Date)' => 'duckdb_date' );
+
+package DBD::DuckDB::FFI::DateStruct {
+    use FFI::Platypus::Record qw( record_layout_1 );
+    record_layout_1(
+        $ffi,
+        int => 'year',
+        int => 'month',
+        int => 'day'
+    );
+}
+$ffi->type( 'record(DBD::DuckDB::FFI::DateStruct)' => 'duckdb_date_struct' );
+
+package DBD::DuckDB::FFI::Time {
+    use FFI::Platypus::Record qw( record_layout_1 );
+    record_layout_1( $ffi, int => 'micros' );
+}
+$ffi->type( 'record(DBD::DuckDB::FFI::Time)' => 'duckdb_time' );
+
+package DBD::DuckDB::FFI::TimeStruct {
+    use FFI::Platypus::Record qw( record_layout_1 );
+    record_layout_1(
+        $ffi,
+        int => 'hour',
+        int => 'minute',
+        int => 'second',
+        int => 'micros'
+    );
+}
+$ffi->type( 'record(DBD::DuckDB::FFI::TimeStruct)' => 'duckdb_time_struct' );
+
+#
+# TODO duckdb_time_tz && struct
+#
+
+package DBD::DuckDB::FFI::Timestamp {
+    use FFI::Platypus::Record qw( record_layout_1 );
+    record_layout_1( $ffi, int => 'micros' );
+}
+$ffi->type( 'record(DBD::DuckDB::FFI::Timestamp)' => 'duckdb_timestamp' );
+
+package DBD::DuckDB::FFI::TimestampStruct {
+    use FFI::Platypus::Record qw( record_layout_1 );
+    record_layout_1(
+        $ffi,
+        int => 'year',
+        int => 'month',
+        int => 'day',
+        int => 'hour',
+        int => 'minute',
+        int => 'second',
+        int => 'micros'
+    );
+}
+$ffi->type(
+    'record(DBD::DuckDB::FFI::TimestampStruct)' => 'duckdb_timestamp_struct' );
+
+package DBD::DuckDB::FFI::PreparedStatement {
+    use FFI::Platypus::Record qw( record_layout_1 );
+    record_layout_1( $ffi, opaque => 'internal_ptr' );
+}
+$ffi->type( 'record(DBD::DuckDB::FFI::PreparedStatement)' =>
+      'duckdb_prepared_statement' );
+
+# TODO types
 $ffi->type( 'opaque' => 'duckdb_config' );
 $ffi->type( 'opaque' => 'duckdb_query_progress_type' );
 $ffi->type( 'opaque' => 'duckdb_state' );
@@ -62,8 +132,6 @@ $ffi->type( 'opaque' => 'duckdb_logical_type' );
 $ffi->type( 'opaque' => 'duckdb_result_type' );
 $ffi->type( 'opaque' => 'duckdb_result_error_type' );
 $ffi->type( 'opaque' => 'duckdb_appender' );
-$ffi->type( 'opaque' => 'duckdb_statement' );
-$ffi->type( 'opaque' => 'duckdb_prepared_statement' );
 $ffi->type( 'int'    => 'idx_t' );
 
 my %functions = (
@@ -114,14 +182,7 @@ my %functions = (
     duckdb_result_return_type =>
       [ ['duckdb_query_result'] => 'duckdb_result_type' ],
 
-    duckdb_value_int32 => [ [ 'duckdb_query_result*', 'int', 'int' ] => 'int' ]
-    ,                                                              # deprecated
-    duckdb_value_varchar =>
-      [ [ 'duckdb_query_result*', 'int', 'int' ] => 'string' ],    # deprecated
-
     # data chunks
-    duckdb_result_get_chunk =>
-      [ [ 'duckdb_query_result', 'int' ] => 'duckdb_data_chunk' ],  # deprecated
     duckdb_create_data_chunk =>
       [ [ 'duckdb_logical_type*', 'idx_t' ] => 'duckdb_data_chunk' ],
 
@@ -139,21 +200,24 @@ my %functions = (
 
     # vectors
     duckdb_vector_get_column_type =>
-      [ [ 'duckdb_vector', 'idx_t' ] => 'duckdb_logical_type' ],
+      [ ['duckdb_vector'] => 'duckdb_logical_type' ],
     duckdb_vector_get_data       => [ ['duckdb_vector']     => 'opaque' ],
     duckdb_vector_get_validity   => [ ['duckdb_vector']     => 'opaque' ],
     duckdb_validity_row_is_valid => [ [ 'opaque', 'idx_t' ] => 'bool' ],
 
     duckdb_prepare => [
-        [ 'duckdb_connection', 'string', 'duckdb_statement*' ] => 'duckdb_state'
+        [ 'duckdb_connection', 'string', 'duckdb_prepared_statement*' ] =>
+          'duckdb_state'
     ],
-
-    duckdb_vector_size => [ [] => 'idx_t' ],
-
     duckdb_execute_prepared => [
         [ 'duckdb_prepared_statement', 'duckdb_query_result*' ] =>
           'duckdb_state'
     ],
+
+    duckdb_logical_type_get_alias => [ ['duckdb_logical_type'] => 'string' ],
+    duckdb_get_type_id => [ ['duckdb_logical_type'] => 'duckdb_type' ],
+
+    duckdb_vector_size => [ [] => 'idx_t' ],
 );
 
 sub cast ( $data, $from, $to ) {
