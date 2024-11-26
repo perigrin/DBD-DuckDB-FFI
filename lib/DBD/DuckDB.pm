@@ -1,8 +1,10 @@
-use 5.26.0;
+use strict;
 use warnings;
+use 5.018;
 use experimental 'signatures';
 
 package DBD::DuckDB 0.01 {
+    our $VERSION = '0.01';
     our $drh;
 
     sub driver ( $class, $attr ) {
@@ -13,7 +15,7 @@ package DBD::DuckDB 0.01 {
         $drh = DBI::_new_drh(
             $class,
             {
-                'Name'        => 'rust_mysql',
+                'Name'        => 'DuckDB',
                 'Version'     => $__PACKAGE__::VERSION,
                 'Attribution' => __PACKAGE__ . ' by Chris Prather',
             }
@@ -66,6 +68,7 @@ package DBD::DuckDB::db {
       duckdb_get_type_id
       duckdb_prepare
       duckdb_query
+      duckdb_rows_changed
       duckdb_validity_row_is_valid
       duckdb_vector_get_column_type
       duckdb_vector_get_data
@@ -88,9 +91,9 @@ package DBD::DuckDB::db {
         return $dbh->SUPER::FETCH($attr);
     }
 
-    sub prepare ( $dbh, $statement, $attr ) {
+    sub prepare ( $dbh, $statement, $attr=undef ) {
         my ( $outer, $sth ) = DBI::_new_sth( $dbh, {} );
-        $sth->{duckdb_st_ptr} = DuckDB::FFI::PreparedStatement->new();
+        $sth->{duckdb_st_ptr} = DBD::DuckDB::FFI::PreparedStatement->new();
         duckdb_prepare( $dbh->{duckdb_conn_ptr},
             $statement, $sth->{duckdb_st_ptr} );
 
@@ -99,8 +102,12 @@ package DBD::DuckDB::db {
         return $outer;
     }
 
-    sub do ( $dbh, $statement ) {
-        duckdb_query( $dbh->{duckdb_conn_ptr}, $statement, undef );
+    sub do ( $dbh, $statement, $attr=undef, @bind_values ) {
+        my $res = DBD::DuckDB::FFI::Result->new();
+        duckdb_query( $dbh->{duckdb_conn_ptr}, $statement, $res );
+        my $rows = duckdb_rows_changed($res);
+        duckdb_destroy_result($res);
+        return $rows;
     }
 
     my @decode = ();
@@ -164,11 +171,14 @@ package DBD::DuckDB::st {
     our $imp_data_size = 0;
 
     use DBD::DuckDB::FFI qw(
-      duckdb_execute
+      duckdb_execute_prepared
     );
 
-    sub execute ( $sth, @params ) {
-
+    sub execute ( $sth, @bind_values ) {
+        my $res = DBD::DuckDB::FFI::Result->new();
+        duckdb_execute_prepared( $sth->{duckdb_st_ptr}, $res );
+        # TODO: handle bind_values
+        return 1;
     }
 }
 

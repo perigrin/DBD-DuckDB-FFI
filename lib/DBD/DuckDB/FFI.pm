@@ -1,6 +1,7 @@
 package DBD::DuckDB::FFI;
-use 5.26.0;
+use strict;
 use warnings;
+use 5.018;
 use Feature::Compat::Try;
 use builtin qw( export_lexically );
 use experimental 'signatures';
@@ -208,9 +209,30 @@ my %functions = (
     duckdb_vector_get_validity   => [ ['duckdb_vector']     => 'opaque' ],
     duckdb_validity_row_is_valid => [ [ 'opaque', 'idx_t' ] => 'bool' ],
 
-    duckdb_prepare => [
-        [ 'duckdb_connection', 'string', 'duckdb_prepared_statement*' ] =>
-          'duckdb_state'
+    # Prepared Statements
+    duckdb_prepare =>
+      [ [ 'duckdb_connection', 'string', 'duckdb_prepared_statement*' ] =>
+          'duckdb_state' ],
+    duckdb_destroy_prepare => [ ['duckdb_prepared_statement*'] => 'void' ],
+
+    # Utility Functions
+    duckdb_bind_boolean => [
+        [ 'duckdb_prepared_statement', 'idx_t', 'bool' ] => 'duckdb_state'
+    ],
+    duckdb_bind_int32 => [
+        [ 'duckdb_prepared_statement', 'idx_t', 'int32_t' ] => 'duckdb_state'
+    ],
+    duckdb_bind_int64 => [
+        [ 'duckdb_prepared_statement', 'idx_t', 'int64_t' ] => 'duckdb_state'
+    ],
+    duckdb_bind_double => [
+        [ 'duckdb_prepared_statement', 'idx_t', 'double' ] => 'duckdb_state'
+    ],
+    duckdb_bind_varchar => [
+        [ 'duckdb_prepared_statement', 'idx_t', 'string' ] => 'duckdb_state'
+    ],
+    duckdb_bind_null => [
+        [ 'duckdb_prepared_statement', 'idx_t' ] => 'duckdb_state'
     ],
     duckdb_execute_prepared => [
         [ 'duckdb_prepared_statement', 'duckdb_query_result*' ] =>
@@ -245,3 +267,142 @@ sub import ( $class, @list ) {
 
 1;
 __END__
+
+=head1 NAME
+
+DBD::DuckDB::FFI - DBI driver for DuckDB using FFI
+
+=head1 VERSION
+
+Version 0.01
+
+=head1 SYNOPSIS
+
+    use DBI;
+    
+    # Connect to an in-memory database
+    my $dbh = DBI->connect("dbi:DuckDB:database=:memory:", "", "");
+    
+    # Create a table
+    $dbh->do('CREATE TABLE test (id INTEGER, name TEXT)');
+    
+    # Insert some data
+    $dbh->do('INSERT INTO test VALUES (1, ?), (2, ?)', undef, 'foo', 'bar');
+    
+    # Query the data
+    my $data = $dbh->selectall_hashref('SELECT * FROM test ORDER BY id');
+    
+    # Work with the results
+    for my $row (@$data) {
+        printf "ID: %d, Name: %s\n", $row->{id}, $row->{name};
+    }
+    
+    # Disconnect when done
+    $dbh->disconnect;
+
+=head1 DESCRIPTION
+
+This module provides a L<DBI> driver for L<DuckDB|https://duckdb.org/>, an embedded 
+analytical database. It uses L<FFI::Platypus> to interface with DuckDB's C API, 
+allowing you to use DuckDB directly from Perl without compilation.
+
+Key features:
+
+=over 4
+
+=item * No compilation required - uses FFI to interface with DuckDB
+
+=item * Supports both in-memory and file-based databases
+
+=item * Full SQL support including complex analytical queries
+
+=item * Native support for arrays and structured types
+
+=item * High performance for analytical workloads
+
+=back
+
+For implementation details and internal documentation, see L<DBD::DuckDB::FFI::Implementation>.
+
+=head1 USAGE
+
+=head2 Connection
+
+Connect to an in-memory database:
+
+    my $dbh = DBI->connect("dbi:DuckDB:database=:memory:", "", "");
+
+Connect to a file-based database:
+
+    my $dbh = DBI->connect("dbi:DuckDB:database=/path/to/db.duckdb", "", "");
+
+=head2 Data Types
+
+DuckDB supports a wide range of SQL types including:
+
+=over 4
+
+=item * Numeric types (INTEGER, BIGINT, DOUBLE, DECIMAL)
+
+=item * Text types (VARCHAR, TEXT)
+
+=item * Binary types (BLOB)
+
+=item * Date/Time types (DATE, TIME, TIMESTAMP)
+
+=item * Boolean type (BOOLEAN)
+
+=item * Array types (INTEGER[], VARCHAR[], etc.)
+
+=item * Structured types (ROW, MAP)
+
+=back
+
+=head2 Transactions
+
+The driver supports transactions:
+
+    $dbh->{AutoCommit} = 0;
+    eval {
+        $dbh->do('INSERT INTO test VALUES (1, "test")');
+        $dbh->do('UPDATE test SET name = "updated" WHERE id = 1');
+        $dbh->commit;
+    };
+    if ($@) {
+        warn "Transaction failed: $@";
+        eval { $dbh->rollback };
+    }
+
+=head1 SEE ALSO
+
+=over 4
+
+=item * L<DBD::DuckDB> - The main DBI driver module
+
+=item * L<DBI> - Database independent interface for Perl
+
+=item * L<DuckDB Documentation|https://duckdb.org/docs/> - Official DuckDB documentation
+
+=item * L<FFI::Platypus> - FFI interface used by this module
+
+=back
+
+=head1 AUTHOR
+
+Chris Prather, C<< <chris@prather.org> >>
+
+=head1 BUGS
+
+Please report any bugs or feature requests through the web interface at 
+L<https://github.com/perigrin/DBD-DuckDB-FFI/issues>.
+
+=head1 COPYRIGHT
+
+Copyright 2024 Chris Prather.
+
+=head1 LICENSE
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
