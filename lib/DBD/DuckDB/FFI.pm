@@ -13,7 +13,10 @@ use FFI::C;
 
 my $ffi = FFI::Platypus->new(
     api => 2,
-    lib => find_lib_or_die( lib => 'duckdb' ),
+    lib => find_lib_or_die( 
+        lib => 'duckdb' ,
+        alien => 'Alien::DuckDB'
+    ),
 );
 
 package DBD::DuckDB::FFI::Database {
