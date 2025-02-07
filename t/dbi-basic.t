@@ -64,10 +64,39 @@ is(
     'Output formatting works correctly'
 );
 
+
+# Test statement handle
+my $sth;
+lives_ok {
+    $sth = $dbh->prepare('SELECT * FROM integers;');
+}
+'Can prepare a statement';
+
+ok( $sth, 'Got a statement handle' );
+isa_ok( $sth, 'DBI::st', 'Statement handle is correct class' );
+
+lives_ok {
+    $sth->execute;
+}
+'Can execute a statement';
+
+my $rows = $sth->fetchall_arrayref( {} );
+is_deeply(
+    $rows,
+    [ { i => [ 3, 5, 7 ], j => [ 4, 6, undef ] } ],
+    'Data is correct'
+);
+
+lives_ok {
+    $sth->finish();
+}
+'Can finish a statement';
+
 # Test disconnection
 lives_ok {
     $dbh->disconnect();
-} 'Can disconnect from database';
+}
+'Can disconnect from database';
 
 ok(!$dbh->{Active}, 'Database handle is inactive after disconnect');
 

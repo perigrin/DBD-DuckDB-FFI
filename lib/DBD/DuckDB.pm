@@ -3,6 +3,14 @@ use warnings;
 use 5.018;
 use experimental 'signatures';
 
+my @decode = ();
+$decode[4] = sub ( $data, $count ) {    # integer
+    use DBD::DuckDB::FFI qw(duckdb_vector_get_data);
+
+    DBD::DuckDB::FFI::cast( duckdb_vector_get_data($data),
+        'opaque' => "int32_t[$count]" );
+};
+
 package DBD::DuckDB 0.01 {
     our $VERSION = '0.01';
     our $drh;
@@ -110,11 +118,6 @@ package DBD::DuckDB::db {
         return $rows;
     }
 
-    my @decode = ();
-    $decode[4] = sub ( $data, $count ) {    # integer
-        DBD::DuckDB::FFI::cast( duckdb_vector_get_data($data),
-            'opaque' => "int32_t[$count]" );
-    };
 
     sub selectall_hashref ( $dbh, $sql, $key_field = undef, @params ) {
         my %vectors = ();
@@ -172,14 +175,63 @@ package DBD::DuckDB::st {
 
     use DBD::DuckDB::FFI qw(
       duckdb_execute_prepared
+    duckdb_rows_changed duckdb_validity_row_is_valid
+      duckdb_vector_get_column_type duckdb_vector_get_data
+      duckdb_vector_get_validity duckdb_fetch_chunk duckdb_data_chunk_get_size
+      duckdb_data_chunk_get_column_count duckdb_column_name
+      duckdb_data_chunk_get_vector duckdb_get_type_id duckdb_destroy_data_chunk
     );
 
-    sub execute ( $sth, @bind_values ) {
-        my $res = DBD::DuckDB::FFI::Result->new();
-        duckdb_execute_prepared( $sth->{duckdb_st_ptr}, $res );
+    my sub fetch_vectors ($res) {
+        my %vectors = ();
+        while ( my $chunk = duckdb_fetch_chunk($res) ) {
+            my $row_count = duckdb_data_chunk_get_size($chunk);
+            last unless $row_count;
+
+            my $col_count = duckdb_data_chunk_get_column_count($chunk);
+            last unless $col_count;
+
+            for my $col ( 0 .. $col_count - 1 ) {
+                my $name = duckdb_column_name( $res, $col );
+                $vectors{$name} //= [];
+
+                my $v = duckdb_data_chunk_get_vector( $chunk, $col );
+
+                my $type =
+                  duckdb_get_type_id( duckdb_vector_get_column_type($v) );
+
+                my @data = $decode[$type]->( $v, $row_count )->@*;
+
+                if ( my $mask = duckdb_vector_get_validity($v) ) {
+                    push $vectors{$name}->@*, map {
+                        duckdb_validity_row_is_valid( $mask, $_ )
+                          ? $data[$_]
+                          : undef
+                    } 0 .. $#data;
+                }
+                else {
+                    push $vectors{$name}->@*, @data;
+                }
+            }
+            duckdb_destroy_data_chunk($chunk);
+        }
+        return \%vectors;
+    }
+
+        sub execute ( $sth, @bind_values ) {
+        $sth->{res} = DBD::DuckDB::FFI::Result->new();
+        duckdb_execute_prepared( $sth->{duckdb_st_ptr}, $sth->{res} );
         # TODO: handle bind_values
         return 1;
     }
+    sub fetchall_arrayref ( $sth, $attr = undef ) {
+        return [ fetch_vectors($sth->{res})];
+    }
+
+    sub fetchall_hashref ( $sth, $attr = undef ) {
+        return { fetch_vectors($sth->{res})->%* };
+    }
 }
+
 
 1;
