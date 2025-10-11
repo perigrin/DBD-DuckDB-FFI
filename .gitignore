@@ -1,2 +1,3 @@
 local
 cpanfile.snapshot
+.DS_Store

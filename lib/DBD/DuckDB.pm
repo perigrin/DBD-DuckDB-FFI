@@ -175,11 +175,12 @@ package DBD::DuckDB::st {
 
     use DBD::DuckDB::FFI qw(
       duckdb_execute_prepared
-    duckdb_rows_changed duckdb_validity_row_is_valid
+      duckdb_rows_changed duckdb_validity_row_is_valid
       duckdb_vector_get_column_type duckdb_vector_get_data
       duckdb_vector_get_validity duckdb_fetch_chunk duckdb_data_chunk_get_size
       duckdb_data_chunk_get_column_count duckdb_column_name
       duckdb_data_chunk_get_vector duckdb_get_type_id duckdb_destroy_data_chunk
+      duckdb_destroy_result
     );
 
     my sub fetch_vectors ($res) {
