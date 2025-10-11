@@ -261,8 +261,8 @@ while ( my ( $func, $args ) = each %functions ) {
 sub import ( $class, @list ) {
     no warnings 'experimental::builtin';
     @list = keys %functions unless @list;
-    export_lexically map { $_ => __PACKAGE__->can($_) }
-      grep { __PACKAGE__->can($_) } @list;
+    export_lexically( map { $_ => __PACKAGE__->can($_) }
+      grep { __PACKAGE__->can($_) } @list );
 }
 
 1;
