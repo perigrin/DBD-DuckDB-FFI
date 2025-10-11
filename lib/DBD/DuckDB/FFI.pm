@@ -129,7 +129,7 @@ $ffi->type( 'record(DBD::DuckDB::FFI::PreparedStatement)' =>
 # TODO types
 $ffi->type( 'opaque' => 'duckdb_config' );
 $ffi->type( 'opaque' => 'duckdb_query_progress_type' );
-$ffi->type( 'opaque' => 'duckdb_state' );
+$ffi->type( 'int' => 'duckdb_state' );  # enum: 0 = success, 1 = error
 $ffi->type( 'opaque' => 'duckdb_type' );
 $ffi->type( 'opaque' => 'duckdb_statement_type' );
 $ffi->type( 'opaque' => 'duckdb_logical_type' );
