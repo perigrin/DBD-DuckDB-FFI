@@ -1,0 +1,66 @@
+---
+abstract: 'DBI driver for DuckDB using FFI'
+author:
+  - 'Chris Prather, C<< <chris@prather.org> >>'
+build_requires:
+  Test::Deep: '0'
+  Test::Exception: '0'
+  Test::More: '0'
+configure_requires:
+  Module::Build::Tiny: '0'
+dynamic_config: 0
+generated_by: 'App::ModuleBuildTiny version 0.043, CPAN::Meta::Converter version 2.150010'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: '1.4'
+name: DBD-DuckDB-FFI
+provides:
+  DBD::DuckDB:
+    file: lib/DBD/DuckDB.pm
+    version: '0.01'
+  DBD::DuckDB::FFI:
+    file: lib/DBD/DuckDB/FFI.pm
+    version: '0.01'
+  DBD::DuckDB::FFI::Connection:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::DataChunk:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::Database:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::Date:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::DateStruct:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::PreparedStatement:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::Result:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::Time:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::TimeStruct:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::Timestamp:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::TimestampStruct:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::FFI::Vector:
+    file: lib/DBD/DuckDB/FFI.pm
+  DBD::DuckDB::db:
+    file: lib/DBD/DuckDB.pm
+  DBD::DuckDB::dr:
+    file: lib/DBD/DuckDB.pm
+  DBD::DuckDB::st:
+    file: lib/DBD/DuckDB.pm
+requires:
+  Alien::DuckDB: '0'
+  DBI: '0'
+  FFI::C: '0'
+  FFI::CheckLib: '0'
+  FFI::Platypus: '2'
+  Feature::Compat::Try: '0'
+  builtin::Backport: '0'
+  perl: '5.018'
+version: '0.01'
+x_serialization_backend: 'CPAN::Meta::YAML version 0.018'
+x_spdx_expression: 'Artistic-1.0-Perl OR GPL-1.0-or-later'
